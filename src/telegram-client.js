@@ -97,9 +97,17 @@ export class TelegramClient {
       const topicId = message.replyTo?.replyToTopId || 0
       const userId = message.senderId.userId
 
-      // Get sender info
-      const sender = await this.client.getEntity(message.senderId)
-      const username = sender.username || sender.firstName || "Unknown"
+      let username = "Unknown"
+      let sender = null
+
+      try {
+        sender = await this.client.getEntity(message.senderId)
+        username = sender.username || sender.firstName || `User${userId}`
+      } catch (err) {
+        console.log(`[v0] Could not fetch sender entity, using fallback: ${err.message}`)
+        // Fallback: use raw user ID if entity cannot be resolved
+        username = `User${userId}`
+      }
 
       console.log(`[v0] New message from ${username} in group ${groupId}, topic ${topicId}`)
 
@@ -113,9 +121,11 @@ export class TelegramClient {
       // Handle profile photo
       let avatarUrl = null
       try {
-        const photo = await this.client.getProfilePhotos(sender)
-        if (photo.length > 0) {
-          avatarUrl = await this.downloadAndSaveProfilePhoto(userId, username, photo[0])
+        if (sender) {
+          const photo = await this.client.getProfilePhotos(sender)
+          if (photo.length > 0) {
+            avatarUrl = await this.downloadAndSaveProfilePhoto(userId, username, photo[0])
+          }
         }
       } catch (err) {
         console.log(`[v0] Could not download profile photo for ${username}:`, err.message)
@@ -129,6 +139,7 @@ export class TelegramClient {
       await this.database.logMessage(message.id, groupId, topicId, userId, username, message.text || "", mediaCount)
     } catch (error) {
       console.error("[v0] Error handling message:", error.message)
+      console.error("[v0] Stack trace:", error.stack)
     }
   }
 

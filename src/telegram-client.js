@@ -1,8 +1,10 @@
 import { TelegramClient as TgClient } from "telegram"
 import { StringSession } from "telegram/sessions/index.js"
+import { NewMessage } from "telegram/events/index.js"
 import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
+import readline from "readline"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -12,51 +14,76 @@ export class TelegramClient {
     this.discordForwarder = discordForwarder
     this.client = null
     this.sessionFile = path.join(__dirname, "..", "telegram_session.txt")
+    this.isConnected = false
+  }
+
+  async promptForCode(message) {
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+
+      rl.question(message, (answer) => {
+        rl.close()
+        resolve(answer)
+      })
+    })
   }
 
   async start() {
-    let session = ""
+    try {
+      let session = ""
 
-    // Load existing session if available
-    if (fs.existsSync(this.sessionFile)) {
-      session = fs.readFileSync(this.sessionFile, "utf-8")
+      // Load existing session if available
+      if (fs.existsSync(this.sessionFile)) {
+        session = fs.readFileSync(this.sessionFile, "utf-8")
+        console.log("[v0] Existing session found, attempting to reconnect...")
+      }
+
+      this.client = new TgClient(
+        new StringSession(session),
+        Number.parseInt(process.env.TELEGRAM_API_ID),
+        process.env.TELEGRAM_API_HASH,
+        {
+          connectionRetries: 5,
+          retryDelay: 1000,
+          requestRetries: 5,
+        },
+      )
+
+      await this.client.start({
+        phoneNumber: process.env.TELEGRAM_PHONE,
+        password: async () => {
+          const password = await this.promptForCode("Enter your 2FA password: ")
+          return password
+        },
+        phoneCode: async () => {
+          const code = await this.promptForCode("Enter the code you received: ")
+          return code
+        },
+        onError: (err) => {
+          console.error("[v0] Telegram authentication error:", err.message)
+        },
+      })
+
+      const sessionString = this.client.session.save()
+      fs.writeFileSync(this.sessionFile, sessionString)
+      console.log("[v0] Session saved successfully")
+
+      if (!session) {
+        console.log("[v0] First time setup complete! Session string saved to telegram_session.txt")
+        console.log("[v0] You can now copy this session to your .env file as TELEGRAM_SESSION")
+      }
+
+      this.client.addEventHandler(this.handleNewMessage.bind(this), new NewMessage({}))
+
+      this.isConnected = true
+      console.log("[v0] Telegram client connected and listening for messages...")
+    } catch (error) {
+      console.error("[v0] Failed to start Telegram client:", error.message)
+      throw error
     }
-
-    this.client = new TgClient(
-      new StringSession(session),
-      Number.parseInt(process.env.TELEGRAM_API_ID),
-      process.env.TELEGRAM_API_HASH,
-      {
-        connectionRetries: 5,
-      },
-    )
-
-    // Handle new session
-    this.client.addEventHandler(this.handleNewSession.bind(this), new NewMessage({}))
-
-    await this.client.start({
-      phoneNumber: process.env.TELEGRAM_PHONE,
-      password: async () => {
-        // If 2FA is needed, implement here
-        return ""
-      },
-      onError: (err) => console.error("Telegram error:", err),
-    })
-
-    // Save session
-    const sessionString = this.client.session.save()
-    fs.writeFileSync(this.sessionFile, sessionString)
-    console.log("Session saved. If this is first run, copy this session to .env TELEGRAM_SESSION")
-
-    // Listen for new messages
-    this.client.addEventHandler(this.handleNewMessage.bind(this), new NewMessage({}))
-  }
-
-  async handleNewSession() {
-    const sessionString = this.client.session.save()
-    fs.writeFileSync(this.sessionFile, sessionString)
-    console.log("[v0] New session created. Session string:")
-    console.log(sessionString)
   }
 
   async handleNewMessage(event) {
@@ -101,7 +128,7 @@ export class TelegramClient {
       const mediaCount = message.media ? 1 : 0
       await this.database.logMessage(message.id, groupId, topicId, userId, username, message.text || "", mediaCount)
     } catch (error) {
-      console.error("[v0] Error handling message:", error)
+      console.error("[v0] Error handling message:", error.message)
     }
   }
 
@@ -127,17 +154,20 @@ export class TelegramClient {
 
       return photoUrl
     } catch (error) {
-      console.error("[v0] Error downloading profile photo:", error)
+      console.error("[v0] Error downloading profile photo:", error.message)
       return null
     }
   }
 
   async disconnect() {
-    if (this.client) {
-      await this.client.disconnect()
+    try {
+      if (this.client && this.isConnected) {
+        await this.client.disconnect()
+        this.isConnected = false
+        console.log("[v0] Telegram client disconnected")
+      }
+    } catch (error) {
+      console.error("[v0] Error disconnecting Telegram client:", error.message)
     }
   }
 }
-
-// Import NewMessage event
-import { NewMessage } from "telegram/events/index.js"

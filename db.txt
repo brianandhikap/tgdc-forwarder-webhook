@@ -1,0 +1,38 @@
+-- Telegram to Discord Webhook Mapping Table
+CREATE TABLE IF NOT EXISTS webhook_mappings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  group_id BIGINT NOT NULL,
+  topic_id INT NOT NULL DEFAULT 0,
+  webhook_url VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_group_topic (group_id, topic_id),
+  INDEX idx_group_id (group_id)
+);
+
+-- Profile Photos Cache Table
+CREATE TABLE IF NOT EXISTS profile_photos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL UNIQUE,
+  username VARCHAR(255) NOT NULL,
+  photo_filename VARCHAR(255) NOT NULL,
+  photo_url VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id)
+);
+
+-- Message Log Table (optional, for tracking forwarded messages)
+CREATE TABLE IF NOT EXISTS message_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  telegram_message_id BIGINT NOT NULL,
+  group_id BIGINT NOT NULL,
+  topic_id INT NOT NULL DEFAULT 0,
+  user_id BIGINT NOT NULL,
+  username VARCHAR(255) NOT NULL,
+  content TEXT,
+  media_count INT DEFAULT 0,
+  forwarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_group_id (group_id),
+  INDEX idx_user_id (user_id)
+);

@@ -1,0 +1,15 @@
+# Telegram config
+TELEGRAM_API_ID=xxx
+TELEGRAM_API_HASH=xxx
+TELEGRAM_PHONE=xxx
+TELEGRAM_SESSION=xxx
+
+# MySQL Database
+MYSQL_HOST_Webhook=xxx
+MYSQL_USER_Webhook=xxx
+MYSQL_PASSWORD_Webhook=xxx
+MYSQL_DATABASE_Webhook=xxx
+
+# Express Server Configuration
+HOST=xx.xx.xx.xx
+PORT=xxxx

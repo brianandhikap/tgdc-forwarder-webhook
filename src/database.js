@@ -15,6 +15,65 @@ export class Database {
       connectionLimit: 10,
       queueLimit: 0,
     })
+
+    await this.initializeSchema()
+  }
+
+  async initializeSchema() {
+    const connection = await this.pool.getConnection()
+    try {
+      // Create webhook_mappings table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS webhook_mappings (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          group_id BIGINT NOT NULL,
+          topic_id INT NOT NULL DEFAULT 0,
+          webhook_url VARCHAR(500) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_group_topic (group_id, topic_id),
+          INDEX idx_group_id (group_id)
+        )
+      `)
+
+      // Create profile_photos table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS profile_photos (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id BIGINT NOT NULL UNIQUE,
+          username VARCHAR(255) NOT NULL,
+          photo_filename VARCHAR(255) NOT NULL,
+          photo_url VARCHAR(500) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_user_id (user_id)
+        )
+      `)
+
+      // Create message_logs table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS message_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          telegram_message_id BIGINT NOT NULL,
+          group_id BIGINT NOT NULL,
+          topic_id INT NOT NULL DEFAULT 0,
+          user_id BIGINT NOT NULL,
+          username VARCHAR(255) NOT NULL,
+          content TEXT,
+          media_count INT DEFAULT 0,
+          forwarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_group_id (group_id),
+          INDEX idx_user_id (user_id)
+        )
+      `)
+
+      console.log("[v0] Database schema initialized successfully")
+    } catch (error) {
+      console.error("[v0] Error initializing database schema:", error.message)
+      throw error
+    } finally {
+      connection.release()
+    }
   }
 
   async disconnect() {
@@ -31,6 +90,9 @@ export class Database {
         [groupId, topicId],
       )
       return rows.length > 0 ? rows[0].webhook_url : null
+    } catch (error) {
+      console.error("[v0] Error getting webhook URL:", error.message)
+      throw error
     } finally {
       connection.release()
     }
@@ -43,12 +105,15 @@ export class Database {
         `INSERT INTO profile_photos (user_id, username, photo_filename, photo_url) 
          VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE 
-         username = VALUES(username), 
-         photo_filename = VALUES(photo_filename),
-         photo_url = VALUES(photo_url),
+         username = ?, 
+         photo_filename = ?,
+         photo_url = ?,
          updated_at = CURRENT_TIMESTAMP`,
-        [userId, username, photoFilename, photoUrl],
+        [userId, username, photoFilename, photoUrl, username, photoFilename, photoUrl],
       )
+    } catch (error) {
+      console.error("[v0] Error saving profile photo:", error.message)
+      throw error
     } finally {
       connection.release()
     }
@@ -59,6 +124,9 @@ export class Database {
     try {
       const [rows] = await connection.query("SELECT photo_url FROM profile_photos WHERE user_id = ?", [userId])
       return rows.length > 0 ? rows[0].photo_url : null
+    } catch (error) {
+      console.error("[v0] Error getting profile photo:", error.message)
+      throw error
     } finally {
       connection.release()
     }
@@ -72,6 +140,9 @@ export class Database {
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [telegramMessageId, groupId, topicId, userId, username, content, mediaCount],
       )
+    } catch (error) {
+      console.error("[v0] Error logging message:", error.message)
+      throw error
     } finally {
       connection.release()
     }

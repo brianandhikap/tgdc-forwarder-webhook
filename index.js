@@ -38,12 +38,18 @@ app.listen(PORT, HOST, async () => {
 
   try {
     await db.connect()
-    console.log("Database connected successfully")
+    console.log("[v0] Database connected successfully")
+
+    const startupTimeout = setTimeout(() => {
+      console.error("[v0] Telegram client startup timeout - check your credentials")
+      process.exit(1)
+    }, 60000) // 60 second timeout
 
     await telegramClient.start()
-    console.log("Telegram client started")
+    clearTimeout(startupTimeout)
+    console.log("[v0] Telegram client started successfully")
   } catch (error) {
-    console.error("Failed to start services:", error)
+    console.error("[v0] Failed to start services:", error.message)
     process.exit(1)
   }
 })

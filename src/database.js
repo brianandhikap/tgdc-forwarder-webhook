@@ -67,9 +67,9 @@ export class Database {
         )
       `)
 
-      console.log("Database schema initialized successfully")
+      console.log("[v0] Database schema initialized successfully")
     } catch (error) {
-      console.error("Error initializing database schema:", error.message)
+      console.error("[v0] Error initializing database schema:", error.message)
       throw error
     } finally {
       connection.release()
@@ -125,7 +125,7 @@ export class Database {
       const [rows] = await connection.query("SELECT photo_url FROM profile_photos WHERE user_id = ?", [userId])
       return rows.length > 0 ? rows[0].photo_url : null
     } catch (error) {
-      console.error("Error getting profile photo:", error.message)
+      console.error("[v0] Error getting profile photo:", error.message)
       throw error
     } finally {
       connection.release()
@@ -141,7 +141,22 @@ export class Database {
         [telegramMessageId, groupId, topicId, userId, username, content, mediaCount],
       )
     } catch (error) {
-      console.error("Error logging message:", error.message)
+      console.error("[v0] Error logging message:", error.message)
+      throw error
+    } finally {
+      connection.release()
+    }
+  }
+
+  async getAllWebhookMappings() {
+    const connection = await this.pool.getConnection()
+    try {
+      const [rows] = await connection.query(
+        "SELECT group_id, topic_id, webhook_url FROM webhook_mappings ORDER BY group_id, topic_id",
+      )
+      return rows
+    } catch (error) {
+      console.error("[v0] Error getting all webhook mappings:", error.message)
       throw error
     } finally {
       connection.release()

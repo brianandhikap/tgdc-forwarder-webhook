@@ -40,6 +40,15 @@ app.listen(PORT, HOST, async () => {
     await db.connect()
     console.log("[v0] Database connected successfully")
 
+    const webhookMappings = await db.getAllWebhookMappings()
+    if (webhookMappings.length > 0) {
+      console.log("\n[v0] ========== WEBHOOK MAPPINGS ==========")
+      console.table(webhookMappings)
+      console.log("[v0] ========================================\n")
+    } else {
+      console.log("[v0] No webhook mappings found in database\n")
+    }
+
     const startupTimeout = setTimeout(() => {
       console.error("[v0] Telegram client startup timeout - check your credentials")
       process.exit(1)

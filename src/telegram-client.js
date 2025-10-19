@@ -109,7 +109,7 @@ export class TelegramClient {
         return
       }
 
-      const topicId = message.topicId || 0
+      const topicId = message.topicId || message.replyTo?.topicId || message.replyTo?.replyToTopId || 0
       const userId = message.senderId.userId
 
       let username = "Unknown"

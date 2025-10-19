@@ -105,11 +105,11 @@ export class Database {
         `INSERT INTO profile_photos (user_id, username, photo_filename, photo_url) 
          VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE 
-         username = VALUES(username), 
-         photo_filename = VALUES(photo_filename),
-         photo_url = VALUES(photo_url),
+         username = ?, 
+         photo_filename = ?,
+         photo_url = ?,
          updated_at = CURRENT_TIMESTAMP`,
-        [userId, username, photoFilename, photoUrl],
+        [userId, username, photoFilename, photoUrl, username, photoFilename, photoUrl],
       )
     } catch (error) {
       console.error("[v0] Error saving profile photo:", error.message)

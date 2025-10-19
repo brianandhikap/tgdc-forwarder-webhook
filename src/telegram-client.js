@@ -93,7 +93,18 @@ export class TelegramClient {
       // Skip outgoing messages
       if (message.out) return
 
-      const groupId = message.peerId.channelId || message.peerId.chatId
+      let groupId
+      if (message.peerId.channelId) {
+        // Supergroup: add -100 prefix
+        groupId = -100 - message.peerId.channelId
+      } else if (message.peerId.chatId) {
+        // Regular group: add - prefix
+        groupId = -message.peerId.chatId
+      } else {
+        console.log("[v0] Could not determine group ID from message")
+        return
+      }
+
       const topicId = message.replyTo?.replyToTopId || 0
       const userId = message.senderId.userId
 

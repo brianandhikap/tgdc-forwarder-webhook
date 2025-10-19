@@ -93,10 +93,14 @@ export class TelegramClient {
       // Skip outgoing messages
       if (message.out) return
 
+      console.log("[v0] DEBUG - message.peerId:", JSON.stringify(message.peerId, null, 2))
+      console.log("[v0] DEBUG - message.replyTo:", JSON.stringify(message.replyTo, null, 2))
+      console.log("[v0] DEBUG - message.topicId:", message.topicId)
+      console.log("[v0] DEBUG - Full message keys:", Object.keys(message))
+
       let groupId
       if (message.peerId.channelId) {
-        // Supergroup: add -100 prefix
-        groupId = -100 - message.peerId.channelId
+        groupId = Number.parseInt(`-100${message.peerId.channelId}`)
       } else if (message.peerId.chatId) {
         // Regular group: add - prefix
         groupId = -message.peerId.chatId
@@ -105,7 +109,7 @@ export class TelegramClient {
         return
       }
 
-      const topicId = message.replyTo?.replyToTopId || 0
+      const topicId = message.topicId || 0
       const userId = message.senderId.userId
 
       let username = "Unknown"

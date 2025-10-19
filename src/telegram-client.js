@@ -93,10 +93,11 @@ export class TelegramClient {
       // Skip outgoing messages
       if (message.out) return
 
-      console.log("[v0] DEBUG - message.peerId:", JSON.stringify(message.peerId, null, 2))
-      console.log("[v0] DEBUG - message.replyTo:", JSON.stringify(message.replyTo, null, 2))
-      console.log("[v0] DEBUG - message.topicId:", message.topicId)
-      console.log("[v0] DEBUG - Full message keys:", Object.keys(message))
+      const userId = message.senderId?.userId || message.fromId?.userId || null
+      if (!userId) {
+        console.log("[v0] Could not determine user ID from message")
+        return
+      }
 
       let groupId
       if (message.peerId.channelId) {
@@ -109,18 +110,25 @@ export class TelegramClient {
         return
       }
 
-      const topicId = message.topicId || message.replyTo?.topicId || message.replyTo?.replyToTopId || 0
-      const userId = message.senderId.userId
+      const topicId = message.replyTo?.replyToTopId || message.topicId || 0
 
+      let firstName = "Unknown"
+      let lastName = ""
       let username = "Unknown"
       let sender = null
 
       try {
         sender = await this.client.getEntity(message.senderId)
-        username = sender.username || sender.firstName || `User${userId}`
+        firstName = sender.firstName || "Unknown"
+        lastName = sender.lastName || ""
+        // Combine first and last name, fallback to username then user ID
+        username = `${firstName}${lastName ? ` ${lastName}` : ""}`.trim()
+        if (!username || username === "Unknown") {
+          username = sender.username || `User${userId}`
+        }
       } catch (err) {
         console.log(`[v0] Could not fetch sender entity, using fallback: ${err.message}`)
-        // Fallback: use raw user ID if entity cannot be resolved
+        // Fallback: use user ID if entity cannot be resolved
         username = `User${userId}`
       }
 

@@ -128,8 +128,17 @@ export class TelegramClient {
         }
       } catch (err) {
         console.log(`[v0] Could not fetch sender entity, using fallback: ${err.message}`)
-        // Fallback: use user ID if entity cannot be resolved
-        username = `User${userId}`
+        // Some Telegram clients send sender info in the message object
+        if (message.senderName) {
+          username = message.senderName
+        } else if (message.fromUser) {
+          firstName = message.fromUser.firstName || "Unknown"
+          lastName = message.fromUser.lastName || ""
+          username = `${firstName}${lastName ? ` ${lastName}` : ""}`.trim()
+        } else {
+          // Final fallback to user ID
+          username = `User${userId}`
+        }
       }
 
       console.log(`[v0] New message from ${username} in group ${groupId}, topic ${topicId}`)
